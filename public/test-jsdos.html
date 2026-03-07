@@ -1,0 +1,790 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>DOS Player</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover" />
+    <script src="/jsdos/js-dos.js"></script>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        html, body {
+            width: 100vw;
+            height: 100dvh;
+            overflow: hidden;
+            background: #000;
+            touch-action: none;
+            -webkit-user-select: none;
+            user-select: none;
+            -webkit-touch-callout: none;
+            overscroll-behavior: none;
+        }
+        body canvas {
+            display: block;
+            width: 100vw;
+            height: 100dvh;
+            object-fit: contain;
+        }
+        @media (pointer: coarse) {
+            body {
+                display: flex;
+                flex-direction: column;
+                align-items: center;
+            }
+            body canvas {
+                height: 55dvh;
+            }
+        }
+        .status { color: #0f0; font-family: monospace; padding: 20px; position: absolute; top: 0; left: 0; z-index: 100; }
+
+        /* ── Touch Controls ── */
+        #touch-overlay {
+            display: none;
+            position: fixed;
+            bottom: 0;
+            left: 0;
+            right: 0;
+            height: 30vh;
+            z-index: 200;
+            pointer-events: none;
+        }
+
+        .touch-zone {
+            position: absolute;
+            bottom: 10px;
+            pointer-events: auto;
+        }
+
+        /* D-Pad (centered) */
+        #dpad {
+            left: 50%;
+            transform: translateX(-50%);
+            width: 176px;
+            height: 176px;
+        }
+        .dpad-btn {
+            position: absolute;
+            width: 56px;
+            height: 56px;
+            background: rgba(255, 255, 255, 0.12);
+            border: 2px solid rgba(255, 255, 255, 0.3);
+            border-radius: 8px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: rgba(255, 255, 255, 0.7);
+            font-size: 24px;
+            touch-action: manipulation;
+            -webkit-touch-callout: none;
+        }
+        .dpad-btn.active {
+            background: rgba(255, 0, 255, 0.45);
+            border-color: rgba(255, 0, 255, 0.8);
+        }
+        #dpad-up    { top: 0;    left: 60px; }
+        #dpad-down  { bottom: 0; left: 60px; }
+        #dpad-left  { top: 60px; left: 0; }
+        #dpad-right { top: 60px; right: 0; }
+
+        /* Action buttons (right side) */
+        #action-btns {
+            right: 10px;
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+            align-items: flex-end;
+        }
+        .action-btn {
+            width: 52px;
+            height: 52px;
+            border-radius: 50%;
+            background: rgba(255, 255, 255, 0.12);
+            border: 2px solid rgba(255, 255, 255, 0.3);
+            color: rgba(255, 255, 255, 0.7);
+            font-family: monospace;
+            font-size: 10px;
+            font-weight: bold;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            touch-action: manipulation;
+            -webkit-touch-callout: none;
+        }
+        .action-btn.active {
+            background: rgba(0, 255, 255, 0.4);
+            border-color: rgba(0, 255, 255, 0.8);
+        }
+        /* Fire button active */
+        #btn-fire.active {
+            background: rgba(255, 60, 60, 0.5) !important;
+            border-color: rgba(255, 60, 60, 0.9) !important;
+        }
+        /* Keyboard toggle button */
+        .action-btn.kb-active {
+            background: rgba(0, 255, 100, 0.4);
+            border-color: rgba(0, 255, 100, 0.8);
+        }
+
+        /* Snipes: move D-pad to left, action buttons horizontal above controls */
+        .snipes-mode #dpad {
+            left: 10px;
+            transform: none;
+        }
+        .snipes-mode #action-btns {
+            right: auto;
+            left: 0;
+            right: 0;
+            bottom: 190px;
+            flex-direction: row;
+            justify-content: center;
+            align-items: center;
+            gap: 12px;
+        }
+        .snipes-mode #action-btns .action-btn {
+            width: 44px;
+            height: 44px;
+            font-size: 9px;
+        }
+
+        /* Snipes shoot pad (right side) */
+        #shoot-pad {
+            right: 10px;
+            width: 176px;
+            height: 176px;
+            display: none;
+        }
+        #shoot-pad .dpad-btn {
+            background: rgba(255, 200, 0, 0.12);
+            border-color: rgba(255, 200, 0, 0.3);
+            color: rgba(255, 200, 0, 0.7);
+        }
+        #shoot-pad .dpad-btn.active {
+            background: rgba(255, 200, 0, 0.45);
+            border-color: rgba(255, 200, 0, 0.8);
+        }
+        #shoot-up    { top: 0;    left: 60px; }
+        #shoot-down  { bottom: 0; left: 60px; }
+        #shoot-left  { top: 60px; left: 0; }
+        #shoot-right { top: 60px; right: 0; }
+
+        /* Text-input mode: hide D-pad and normal action buttons */
+        .text-input-mode #dpad { display: none; }
+        .text-input-mode #action-btns { display: none; }
+        .text-input-mode #touch-overlay {
+            height: 45vh;
+        }
+
+        /* Hybrid mode: keyboard + D-pad, no action buttons */
+        .hybrid-mode #action-btns { display: none; }
+        .hybrid-mode #touch-overlay {
+            height: 45vh;
+        }
+        .hybrid-mode #onscreen-kb {
+            bottom: auto;
+            top: 0;
+        }
+        .hybrid-mode #onscreen-kb .kb-key {
+            height: 30px;
+            min-width: 24px;
+            padding: 0 4px;
+            font-size: 11px;
+            border-radius: 4px;
+        }
+        .hybrid-mode #onscreen-kb .kb-key.space {
+            min-width: 90px;
+        }
+        .hybrid-mode #onscreen-kb .kb-key.wide {
+            min-width: 40px;
+        }
+        .hybrid-mode .kb-row {
+            gap: 2px;
+            margin-bottom: 2px;
+        }
+
+        /* On-screen keyboard */
+        #onscreen-kb {
+            display: none;
+            position: absolute;
+            bottom: 8px;
+            left: 4px;
+            right: 4px;
+            pointer-events: auto;
+        }
+        .kb-row {
+            display: flex;
+            justify-content: center;
+            gap: 3px;
+            margin-bottom: 3px;
+        }
+        .kb-key {
+            height: 38px;
+            min-width: 30px;
+            padding: 0 6px;
+            border-radius: 5px;
+            background: rgba(255, 255, 255, 0.15);
+            border: 1px solid rgba(255, 255, 255, 0.3);
+            color: rgba(255, 255, 255, 0.85);
+            font-family: monospace;
+            font-size: 13px;
+            font-weight: bold;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            touch-action: manipulation;
+            -webkit-touch-callout: none;
+            flex-shrink: 0;
+        }
+        .kb-key.active {
+            background: rgba(0, 255, 255, 0.4);
+            border-color: rgba(0, 255, 255, 0.8);
+        }
+        .kb-key.wide {
+            flex-grow: 1;
+            min-width: 50px;
+        }
+        .kb-key.space {
+            flex-grow: 3;
+            min-width: 120px;
+        }
+
+        /* Hidden keyboard input — positioned at bottom so iOS doesn't scroll */
+        #kb-input {
+            position: fixed;
+            bottom: 0;
+            left: 50%;
+            opacity: 0;
+            width: 1px;
+            height: 1px;
+            pointer-events: none;
+        }
+
+        /* Landscape: shrink controls */
+        @media (orientation: landscape) and (max-height: 500px) {
+            #touch-overlay { height: 25vh; }
+            .dpad-btn { width: 44px; height: 44px; font-size: 18px; }
+            #dpad, #shoot-pad { width: 140px; height: 140px; }
+            #dpad-up, #shoot-up       { left: 48px; }
+            #dpad-down, #shoot-down   { left: 48px; }
+            #dpad-left, #shoot-left   { top: 48px; }
+            #dpad-right, #shoot-right { top: 48px; }
+            .action-btn { width: 42px; height: 42px; font-size: 9px; }
+        }
+    </style>
+</head>
+<body>
+    <div id="status" class="status">Initializing...</div>
+    <canvas id="jsdos" tabindex="0"></canvas>
+
+    <!-- Hidden input for mobile keyboard -->
+    <input type="text" id="kb-input" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false" />
+
+    <!-- Touch Controls Overlay -->
+    <div id="touch-overlay">
+        <!-- D-Pad: Arrow keys -->
+        <div id="dpad" class="touch-zone">
+            <div class="dpad-btn" id="dpad-up" data-key="38">&#9650;</div>
+            <div class="dpad-btn" id="dpad-down" data-key="40">&#9660;</div>
+            <div class="dpad-btn" id="dpad-left" data-key="37">&#9664;</div>
+            <div class="dpad-btn" id="dpad-right" data-key="39">&#9654;</div>
+        </div>
+
+        <!-- Snipes Shoot Pad: W=87 A=65 S=83 D=68 -->
+        <div id="shoot-pad" class="touch-zone">
+            <div class="dpad-btn" id="shoot-up" data-key="87">W</div>
+            <div class="dpad-btn" id="shoot-down" data-key="83">S</div>
+            <div class="dpad-btn" id="shoot-left" data-key="65">A</div>
+            <div class="dpad-btn" id="shoot-right" data-key="68">D</div>
+        </div>
+
+        <!-- Digger Fire Button -->
+        <div id="fire-btn-zone" class="touch-zone" style="display:none; left:10px;">
+            <div class="action-btn" id="btn-fire" data-key="112" style="width:64px; height:64px; font-size:12px; background:rgba(255,60,60,0.2); border-color:rgba(255,60,60,0.5); color:rgba(255,100,100,0.9);">FIRE</div>
+        </div>
+
+        <!-- Action Buttons -->
+        <div id="action-btns" class="touch-zone">
+            <div class="action-btn" id="btn-kb" data-key="0">ABC</div>
+            <div class="action-btn" id="btn-enter" data-key="13">ENT</div>
+            <div class="action-btn" id="btn-space" data-key="32">SPC</div>
+            <div class="action-btn" id="btn-esc" data-key="27">ESC</div>
+        </div>
+
+        <!-- On-screen keyboard for text-input games -->
+        <div id="onscreen-kb">
+            <div class="kb-row" id="kb-row-num">
+                <div class="kb-key" data-key="49">1</div>
+                <div class="kb-key" data-key="50">2</div>
+                <div class="kb-key" data-key="51">3</div>
+                <div class="kb-key" data-key="52">4</div>
+                <div class="kb-key" data-key="53">5</div>
+                <div class="kb-key" data-key="54">6</div>
+                <div class="kb-key" data-key="55">7</div>
+                <div class="kb-key" data-key="56">8</div>
+                <div class="kb-key" data-key="57">9</div>
+                <div class="kb-key" data-key="48">0</div>
+            </div>
+            <div class="kb-row">
+                <div class="kb-key" data-key="81">Q</div>
+                <div class="kb-key" data-key="87">W</div>
+                <div class="kb-key" data-key="69">E</div>
+                <div class="kb-key" data-key="82">R</div>
+                <div class="kb-key" data-key="84">T</div>
+                <div class="kb-key" data-key="89">Y</div>
+                <div class="kb-key" data-key="85">U</div>
+                <div class="kb-key" data-key="73">I</div>
+                <div class="kb-key" data-key="79">O</div>
+                <div class="kb-key" data-key="80">P</div>
+            </div>
+            <div class="kb-row">
+                <div class="kb-key" data-key="65">A</div>
+                <div class="kb-key" data-key="83">S</div>
+                <div class="kb-key" data-key="68">D</div>
+                <div class="kb-key" data-key="70">F</div>
+                <div class="kb-key" data-key="71">G</div>
+                <div class="kb-key" data-key="72">H</div>
+                <div class="kb-key" data-key="74">J</div>
+                <div class="kb-key" data-key="75">K</div>
+                <div class="kb-key" data-key="76">L</div>
+            </div>
+            <div class="kb-row">
+                <div class="kb-key" data-key="90">Z</div>
+                <div class="kb-key" data-key="88">X</div>
+                <div class="kb-key" data-key="67">C</div>
+                <div class="kb-key" data-key="86">V</div>
+                <div class="kb-key" data-key="66">B</div>
+                <div class="kb-key" data-key="78">N</div>
+                <div class="kb-key" data-key="77">M</div>
+                <div class="kb-key" data-key="8">&#9003;</div>
+            </div>
+            <div class="kb-row">
+                <div class="kb-key wide" data-key="27">ESC</div>
+                <div class="kb-key space" data-key="32">SPACE</div>
+                <div class="kb-key wide" data-key="13">ENT</div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // ── Global error handler ──
+        window.onerror = function(msg, src, line, col, err) {
+            var el = document.getElementById('status');
+            if (el) { el.style.display = 'block'; el.textContent = 'JS Error: ' + msg; }
+        };
+
+        // Use _s to avoid conflicting with window.status
+        var _s = document.getElementById('status');
+
+        // ── Audio Context capture ──
+        var _audioContexts = [];
+        var _OrigAudioContext = window.AudioContext || window.webkitAudioContext;
+        if (_OrigAudioContext) {
+            var _Wrapped = function() {
+                var ctx = new _OrigAudioContext();
+                _audioContexts.push(ctx);
+                return ctx;
+            };
+            _Wrapped.prototype = _OrigAudioContext.prototype;
+            window.AudioContext = window.webkitAudioContext = _Wrapped;
+        }
+        function resumeAudio() {
+            _audioContexts.forEach(function(ctx) {
+                if (ctx.state === 'suspended') ctx.resume();
+            });
+            // Also resume SDL's AudioContext directly if js-dos created one
+            if (typeof SDL !== 'undefined' && SDL.audioContext && SDL.audioContext.state === 'suspended') {
+                SDL.audioContext.resume();
+            }
+        }
+        document.addEventListener('click', resumeAudio);
+        document.addEventListener('keydown', resumeAudio);
+        document.addEventListener('touchstart', resumeAudio);
+        document.addEventListener('touchend', resumeAudio);
+
+        // ── Game config ──
+        var params = new URLSearchParams(window.location.search);
+        var hash = decodeURIComponent(window.location.hash.substring(1));
+        var romPath = hash || params.get('rom') || '/roms/digger.jsdos';
+
+        var gameConfigs = {
+            '/roms/digger.jsdos': { zip: '/roms/digger.zip', exe: 'DIGGER.COM', cycles: 300 },
+            '/roms/carmen-sandiego.jsdos': { zip: '/roms/carmen-sandiego.zip', dir: 'wwcs', exe: 'CARMEN.EXE', cycles: 3000, textInput: true },
+            '/roms/castle-adventure.jsdos': { zip: '/roms/castle-adventure.zip', exe: 'CASTLE.EXE', cycles: 3000 },
+            '/roms/snipes.jsdos': { zip: '/roms/snipes.zip', exe: 'snipes.exe', cycles: 500 },
+            '/roms/oregon-trail.jsdos': { zip: '/roms/oregon-trail.zip', dir: 'oregont', exe: 'OREGON.EXE', cycles: 3000, textInput: true },
+            '/roms/kings-quest.jsdos': { zip: '/roms/kings-quest.zip', boot: 'KQ1PCJR.IMG', cycles: 300, machine: 'pcjr', hybrid: true },
+            '/roms/tetris.jsdos': { zip: '/roms/tetris.zip', exe: 'ETETRIS.EXE', cycles: 3000 },
+            '/roms/frogger.jsdos': { zip: '/roms/frogger.zip', exe: 'FROGGER.COM', cycles: 500 },
+        };
+
+        var game = gameConfigs[romPath] || { zip: '/roms/digger.zip', exe: 'DIGGER.COM', cycles: 300 };
+        var isSnipes = romPath.indexOf('snipes') !== -1;
+        var isDigger = romPath.indexOf('digger') !== -1;
+        var isTextInput = !!game.textInput;
+        var isHybrid = !!game.hybrid;
+        var keyMap = game.keyMap || {};
+        _s.textContent = 'Loading DOSBox for: ' + game.exe;
+
+        // ── CommandInterface reference ──
+        var _ci = null;
+
+        // ── Touch control state ──
+        var pressedKeys = {};
+        var directionKeys = { 37: true, 38: true, 39: true, 40: true };
+        var dpadReleaseTimer = null;
+        var pendingRelease = null;
+
+        function sendKeyDown(keyCode) {
+            var mapped = keyMap[keyCode] || keyCode;
+            if (pressedKeys[mapped]) return;
+            pressedKeys[mapped] = true;
+            if (_ci && _ci.simulateKeyEvent) {
+                _ci.simulateKeyEvent(mapped, true);
+            } else {
+                var canvas = document.getElementById('jsdos');
+                canvas.dispatchEvent(new KeyboardEvent('keydown', { keyCode: mapped, which: mapped, bubbles: true }));
+            }
+        }
+
+        function sendKeyUp(keyCode) {
+            var mapped = keyMap[keyCode] || keyCode;
+            if (!pressedKeys[mapped]) return;
+            delete pressedKeys[mapped];
+            if (_ci && _ci.simulateKeyEvent) {
+                _ci.simulateKeyEvent(mapped, false);
+            } else {
+                var canvas = document.getElementById('jsdos');
+                canvas.dispatchEvent(new KeyboardEvent('keyup', { keyCode: mapped, which: mapped, bubbles: true }));
+            }
+        }
+
+        function sendKeyPress(keyCode) {
+            sendKeyDown(keyCode);
+            setTimeout(function() { sendKeyUp(keyCode); }, 80);
+        }
+
+        function releaseAllKeys() {
+            var keys = Object.keys(pressedKeys);
+            for (var i = 0; i < keys.length; i++) {
+                var kc = parseInt(keys[i]);
+                delete pressedKeys[kc];
+                if (_ci && _ci.simulateKeyEvent) {
+                    _ci.simulateKeyEvent(kc, false);
+                }
+            }
+        }
+
+        // ── Mobile keyboard input ──
+        function setupKeyboardInput() {
+            var kbInput = document.getElementById('kb-input');
+            var kbBtn = document.getElementById('btn-kb');
+
+            kbBtn.addEventListener('touchstart', function(e) {
+                e.preventDefault();
+                e.stopPropagation();
+                kbInput.focus();
+                kbBtn.classList.add('kb-active');
+            }, { passive: false });
+
+            kbInput.addEventListener('blur', function() {
+                kbBtn.classList.remove('kb-active');
+            });
+
+            kbInput.addEventListener('input', function(e) {
+                var val = kbInput.value;
+                if (val.length > 0) {
+                    var ch = val.charAt(val.length - 1);
+                    var code = ch.toUpperCase().charCodeAt(0);
+                    sendKeyPress(code);
+                }
+                kbInput.value = '';
+            });
+
+            kbInput.addEventListener('keydown', function(e) {
+                if (e.key === 'Enter') {
+                    e.preventDefault();
+                    sendKeyPress(13);
+                } else if (e.key === 'Backspace') {
+                    e.preventDefault();
+                    sendKeyPress(8);
+                }
+            });
+        }
+
+        // ── Setup touch controls ──
+        function setupTouchControls() {
+            var isTouchDevice = ('ontouchstart' in window) || (navigator.maxTouchPoints > 0) ||
+                                (window.matchMedia && window.matchMedia('(pointer: coarse)').matches);
+            if (!isTouchDevice) return;
+
+            var overlay = document.getElementById('touch-overlay');
+            overlay.style.display = 'block';
+
+            if (isSnipes) {
+                document.body.classList.add('snipes-mode');
+                document.getElementById('shoot-pad').style.display = 'block';
+            }
+
+            if (isDigger) {
+                document.getElementById('fire-btn-zone').style.display = 'block';
+                var fireBtn = document.getElementById('btn-fire');
+                fireBtn.addEventListener('touchstart', function(e) {
+                    e.preventDefault();
+                    fireBtn.classList.add('active');
+                    sendKeyDown(112);
+                }, { passive: false });
+                fireBtn.addEventListener('touchend', function(e) {
+                    e.preventDefault();
+                    fireBtn.classList.remove('active');
+                    sendKeyUp(112);
+                }, { passive: false });
+                fireBtn.addEventListener('touchcancel', function(e) {
+                    fireBtn.classList.remove('active');
+                    sendKeyUp(112);
+                });
+            }
+
+            if (isTextInput || isHybrid) {
+                if (isTextInput) {
+                    document.body.classList.add('text-input-mode');
+                }
+                if (isHybrid) {
+                    document.body.classList.add('hybrid-mode');
+                }
+                document.getElementById('onscreen-kb').style.display = 'block';
+
+                // Wire up on-screen keyboard keys
+                var kbKeys = document.querySelectorAll('.kb-key');
+                for (var k = 0; k < kbKeys.length; k++) {
+                    (function(key) {
+                        var keyCode = parseInt(key.getAttribute('data-key'));
+                        key.addEventListener('touchstart', function(e) {
+                            e.preventDefault();
+                            key.classList.add('active');
+                            sendKeyPress(keyCode);
+                        }, { passive: false });
+                        key.addEventListener('touchend', function(e) {
+                            e.preventDefault();
+                            key.classList.remove('active');
+                        }, { passive: false });
+                        key.addEventListener('touchcancel', function(e) {
+                            key.classList.remove('active');
+                        });
+                    })(kbKeys[k]);
+                }
+            }
+
+            var dpadBtns = document.querySelectorAll('#dpad .dpad-btn');
+            for (var i = 0; i < dpadBtns.length; i++) {
+                (function(btn) {
+                    var keyCode = parseInt(btn.getAttribute('data-key'));
+                    btn.addEventListener('touchstart', function(e) {
+                        e.preventDefault();
+                        btn.classList.add('active');
+                        if (isDigger && directionKeys[keyCode]) {
+                            // Cancel any pending release and release that key now
+                            if (dpadReleaseTimer) {
+                                clearTimeout(dpadReleaseTimer);
+                                dpadReleaseTimer = null;
+                                if (pendingRelease !== null) {
+                                    sendKeyUp(pendingRelease);
+                                    pendingRelease = null;
+                                }
+                            }
+                            // Release any other held direction keys
+                            for (var dk in directionKeys) {
+                                var dkInt = parseInt(dk);
+                                if (dkInt !== keyCode && pressedKeys[dkInt]) {
+                                    sendKeyUp(dkInt);
+                                }
+                            }
+                        }
+                        sendKeyDown(keyCode);
+                    }, { passive: false });
+                    btn.addEventListener('touchend', function(e) {
+                        e.preventDefault();
+                        btn.classList.remove('active');
+                        if (isDigger && directionKeys[keyCode]) {
+                            // Delay release so the next direction can take over seamlessly
+                            pendingRelease = keyCode;
+                            dpadReleaseTimer = setTimeout(function() {
+                                sendKeyUp(keyCode);
+                                pendingRelease = null;
+                                dpadReleaseTimer = null;
+                            }, 150);
+                        } else {
+                            sendKeyUp(keyCode);
+                        }
+                    }, { passive: false });
+                    btn.addEventListener('touchcancel', function(e) {
+                        btn.classList.remove('active');
+                        if (isDigger && directionKeys[keyCode]) {
+                            pendingRelease = keyCode;
+                            dpadReleaseTimer = setTimeout(function() {
+                                sendKeyUp(keyCode);
+                                pendingRelease = null;
+                                dpadReleaseTimer = null;
+                            }, 150);
+                        } else {
+                            sendKeyUp(keyCode);
+                        }
+                    });
+                })(dpadBtns[i]);
+            }
+
+            // Snipes shoot pad buttons (no sticky behavior)
+            var shootBtns = document.querySelectorAll('#shoot-pad .dpad-btn');
+            for (var si = 0; si < shootBtns.length; si++) {
+                (function(btn) {
+                    var keyCode = parseInt(btn.getAttribute('data-key'));
+                    btn.addEventListener('touchstart', function(e) {
+                        e.preventDefault();
+                        btn.classList.add('active');
+                        sendKeyDown(keyCode);
+                    }, { passive: false });
+                    btn.addEventListener('touchend', function(e) {
+                        e.preventDefault();
+                        btn.classList.remove('active');
+                        sendKeyUp(keyCode);
+                    }, { passive: false });
+                    btn.addEventListener('touchcancel', function(e) {
+                        btn.classList.remove('active');
+                        sendKeyUp(keyCode);
+                    });
+                })(shootBtns[si]);
+            }
+
+            var actionBtns = document.querySelectorAll('#btn-enter, #btn-space, #btn-esc');
+            for (var j = 0; j < actionBtns.length; j++) {
+                (function(btn) {
+                    var keyCode = parseInt(btn.getAttribute('data-key'));
+                    btn.addEventListener('touchstart', function(e) {
+                        e.preventDefault();
+                        btn.classList.add('active');
+                        sendKeyDown(keyCode);
+                    }, { passive: false });
+                    btn.addEventListener('touchend', function(e) {
+                        e.preventDefault();
+                        btn.classList.remove('active');
+                        sendKeyUp(keyCode);
+                    }, { passive: false });
+                    btn.addEventListener('touchcancel', function(e) {
+                        btn.classList.remove('active');
+                        sendKeyUp(keyCode);
+                    });
+                })(actionBtns[j]);
+            }
+
+            setupKeyboardInput();
+        }
+
+        // ── Desktop: remap arrow keys via keyMap (e.g. Frogger: arrows → numpad) ──
+        if (Object.keys(keyMap).length > 0) {
+            document.addEventListener('keydown', function(e) {
+                var mapped = keyMap[e.keyCode];
+                if (mapped) {
+                    e.preventDefault();
+                    sendKeyDown(e.keyCode);
+                }
+            }, true);
+            document.addEventListener('keyup', function(e) {
+                var mapped = keyMap[e.keyCode];
+                if (mapped) {
+                    e.preventDefault();
+                    sendKeyUp(e.keyCode);
+                }
+            }, true);
+        }
+
+        // ── Digger: remap Shift to F1 (fire) on desktop ──
+        if (isDigger) {
+            document.addEventListener('keydown', function(e) {
+                if (e.keyCode === 16) {
+                    e.preventDefault();
+                    sendKeyDown(112);
+                }
+            }, true);
+            document.addEventListener('keyup', function(e) {
+                if (e.keyCode === 16) {
+                    e.preventDefault();
+                    sendKeyUp(112);
+                }
+            }, true);
+        }
+
+        // Release keys on blur/visibility change (iOS Safari hardening)
+        window.addEventListener('blur', releaseAllKeys);
+        document.addEventListener('visibilitychange', function() {
+            if (document.hidden) releaseAllKeys();
+        });
+
+        // ── Launch DOSBox ──
+        try {
+            Dos(document.getElementById("jsdos"), {
+                wdosboxUrl: "/jsdos/wdosbox.js",
+                onerror: function(e) {
+                    _s.textContent = 'Error: ' + e;
+                    console.error('DOSBox error:', e);
+                }
+            }).ready(function(fs, main) {
+                _s.textContent = 'DOSBox ready, extracting game...';
+
+                fs.extract(game.zip).then(function() {
+                    _s.textContent = 'Starting game...';
+                    _s.style.display = 'none';
+
+                    var args = [];
+
+                    // Write sound config for games that need explicit PC speaker setup
+                    if (isDigger) {
+                        var confStr =
+                            "[mixer]\nnosound=false\nrate=44100\nblocksize=1024\nprebuffer=20\n\n" +
+                            "[speaker]\npcspeaker=true\npcrate=44100\n\n" +
+                            "[sblaster]\nsbtype=sb16\nsbbase=220\nirq=7\ndma=1\nhdma=5\nsbmixer=true\noplmode=auto\noplrate=44100\n";
+                        var confBytes = new Uint8Array(confStr.length);
+                        for (var ci = 0; ci < confStr.length; ci++) confBytes[ci] = confStr.charCodeAt(ci);
+                        fs.createFile("dosbox.conf", confBytes);
+                        args.push("-conf", "dosbox.conf");
+                    }
+                    if (game.machine) {
+                        args.push("-machine", game.machine);
+                    }
+                    args.push("-c", "cycles " + game.cycles);
+                    args.push("-c", "MIXER SPKR 100:100");
+                    if (game.boot) {
+                        args.push("-c", "BOOT " + game.boot);
+                    } else {
+                        if (game.dir) {
+                            args.push("-c", "cd " + game.dir);
+                        }
+                        args.push("-c", game.exe);
+                    }
+
+                    try {
+                        var result = main(args);
+                        if (result && typeof result.then === 'function') {
+                            result.then(function(ci) {
+                                _ci = ci;
+                            }).catch(function(err) {
+                                console.warn('Could not capture CI:', err);
+                            });
+                        }
+                    } catch(mainErr) {
+                        console.warn('main() error:', mainErr);
+                    }
+
+                    document.getElementById('jsdos').focus();
+                    setTimeout(function() { document.getElementById('jsdos').focus(); }, 500);
+                    setupTouchControls();
+                }).catch(function(err) {
+                    _s.textContent = 'Extract error: ' + err;
+                    console.error('Extract error:', err);
+                });
+            }).catch(function(message) {
+                _s.textContent = 'DOSBox init error: ' + message;
+                console.error('DOSBox init error:', message);
+            });
+        } catch(e) {
+            _s.textContent = 'Exception: ' + e.message;
+            console.error('Exception:', e);
+        }
+    </script>
+</body>
+</html>

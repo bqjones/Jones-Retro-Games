@@ -1,0 +1,123 @@
+/* Import retro fonts - loaded via index.html to avoid @import order warning */
+@import "tailwindcss";
+
+/* Retro Gaming Theme */
+@theme {
+  /* Custom fonts */
+  --font-pixel: "Press Start 2P", monospace;
+  --font-retro: "VT323", monospace;
+
+  /* Retro color palette */
+  --color-retro-black: #0f0f0f;
+  --color-retro-dark: #1a1a2e;
+  --color-retro-purple: #16213e;
+  --color-retro-blue: #0f3460;
+  --color-retro-accent: #e94560;
+  --color-retro-gold: #ffd700;
+  --color-retro-green: #39ff14;
+  --color-retro-cyan: #00fff7;
+
+  /* CRT effect colors */
+  --color-crt-glow: rgba(57, 255, 20, 0.1);
+  --color-scanline: rgba(0, 0, 0, 0.3);
+}
+
+/* Base styles */
+body {
+  background-color: var(--color-retro-black);
+  color: white;
+  font-family: var(--font-retro);
+  -webkit-font-smoothing: antialiased;
+  min-height: 100vh;
+  margin: 0;
+}
+
+#root {
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+}
+
+/* Utility classes for fonts */
+.font-pixel {
+  font-family: var(--font-pixel);
+}
+
+.font-retro {
+  font-family: var(--font-retro);
+}
+
+/* Retro button style */
+.btn-retro {
+  padding: 0.5rem 1rem;
+  background-color: var(--color-retro-purple);
+  border: 2px solid var(--color-retro-accent);
+  color: var(--color-retro-accent);
+  font-family: var(--font-pixel);
+  font-size: 0.75rem;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  cursor: pointer;
+  box-shadow: 4px 4px 0 var(--color-retro-accent);
+  transition: all 0.15s;
+}
+
+.btn-retro:hover {
+  background-color: var(--color-retro-accent);
+  color: white;
+  box-shadow: 2px 2px 0 var(--color-retro-accent);
+}
+
+.btn-retro:active {
+  transform: translateY(2px);
+  box-shadow: 0 0 0 var(--color-retro-accent);
+}
+
+/* Pixel art rendering */
+.pixelated {
+  image-rendering: pixelated;
+  image-rendering: crisp-edges;
+}
+
+/* CRT scanline effect */
+.crt-effect {
+  position: relative;
+}
+
+.crt-effect::after {
+  content: "";
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background: repeating-linear-gradient(
+    0deg,
+    var(--color-scanline),
+    var(--color-scanline) 1px,
+    transparent 1px,
+    transparent 2px
+  );
+  pointer-events: none;
+  opacity: 0.3;
+}
+
+/* Glow effect for text */
+.text-glow {
+  text-shadow: 0 0 10px currentColor, 0 0 20px currentColor, 0 0 30px currentColor;
+}
+
+/* Card style for game items */
+.game-card {
+  background-color: var(--color-retro-dark);
+  border: 2px solid var(--color-retro-blue);
+  padding: 1rem;
+  border-radius: 0.25rem;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.game-card:hover {
+  border-color: var(--color-retro-accent);
+  box-shadow: 0 0 20px var(--color-retro-accent);
+}
