@@ -107,6 +107,27 @@ body {
   text-shadow: 0 0 10px currentColor, 0 0 20px currentColor, 0 0 30px currentColor;
 }
 
+/* Falling pixel confetti for the trophy screen */
+@keyframes confetti-fall {
+  0% {
+    top: -5%;
+    transform: rotate(0deg);
+    opacity: 1;
+  }
+  100% {
+    top: 105%;
+    transform: rotate(720deg);
+    opacity: 0.7;
+  }
+}
+
+.animate-confetti {
+  animation-name: confetti-fall;
+  animation-timing-function: linear;
+  animation-iteration-count: infinite;
+  top: -5%;
+}
+
 /* Card style for game items */
 .game-card {
   background-color: var(--color-retro-dark);

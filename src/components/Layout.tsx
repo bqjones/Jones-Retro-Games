@@ -2,7 +2,9 @@ import { Link, Outlet, useLocation } from 'react-router-dom';
 
 export function Layout() {
   const location = useLocation();
-  const isPlaying = location.pathname.startsWith('/play/');
+  // Full-bleed competition screens (TV, stations, host phone, leaderboard) manage their own chrome
+  const isFullscreenCompete = /^\/compete\/[^/]+\/(tv|station|host|board)/.test(location.pathname);
+  const isPlaying = location.pathname.startsWith('/play/') || isFullscreenCompete;
 
   return (
     <div className={`bg-retro-black flex flex-col ${isPlaying ? 'h-screen' : 'min-h-screen'}`}>
@@ -27,6 +29,16 @@ export function Layout() {
                 }`}
               >
                 Library
+              </Link>
+              <Link
+                to="/compete"
+                className={`font-pixel text-xs uppercase tracking-wider transition-colors ${
+                  location.pathname.startsWith('/compete')
+                    ? 'text-retro-gold'
+                    : 'text-retro-cyan hover:text-retro-gold'
+                }`}
+              >
+                Compete
               </Link>
               <Link
                 to="/settings"

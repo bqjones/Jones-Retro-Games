@@ -27,3 +27,11 @@ dist-ssr
 *.sln
 *.sw?
 .vercel
+
+# Environment (Supabase keys etc.)
+.env
+.env.*
+!.env.example
+
+# Claude Code local settings (machine-specific)
+.claude/settings.local.json

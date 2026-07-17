@@ -41,7 +41,7 @@ export function Player() {
     );
   }
 
-  const playerUrl = `/test-jsdos.html?v=${Date.now()}#${game.romPath || '/roms/digger.jsdos'}`;
+  const playerUrl = `/test-jsdos.html?v=${game.id}#${game.romPath || '/roms/digger.jsdos'}`;
 
   return (
     <div
