@@ -15,6 +15,7 @@ import { Standings } from '../../components/compete/Standings';
 import { GameFrame } from '../../components/compete/GameFrame';
 import { ScorePad } from '../../components/compete/ScorePad';
 import { ConnectionBadge } from '../../components/compete/ConnectionBadge';
+import { ExitButton } from '../../components/compete/ExitButton';
 import { playFanfare, playRotationChime, playStinger } from '../../lib/sound';
 import type { Standing } from '../../types/competition';
 
@@ -64,6 +65,7 @@ export function TvView() {
           )}
           <ConnectionBadge connection={connection} />
           <span className="font-pixel text-sm text-retro-green">CODE: {comp.code}</span>
+          <ExitButton code={comp.code} variant="discreet" />
         </div>
       </div>
 

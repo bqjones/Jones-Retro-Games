@@ -5,6 +5,7 @@ import { stationForGroup, totalRounds } from '../../lib/competition';
 import { Countdown } from '../../components/compete/Countdown';
 import { Standings } from '../../components/compete/Standings';
 import { ConnectionBadge } from '../../components/compete/ConnectionBadge';
+import { ExitButton } from '../../components/compete/ExitButton';
 
 /** Read-only live leaderboard for phones and iPads on the couch. */
 export function BoardView() {
@@ -41,7 +42,10 @@ export function BoardView() {
   return (
     <div className="min-h-screen bg-retro-black px-4 py-4 max-w-md mx-auto">
       <div className="flex items-center justify-between mb-1">
-        <span className="font-pixel text-[10px] text-retro-gold">{comp.name.toUpperCase()}</span>
+        <div className="flex items-center gap-3">
+          <ExitButton code={comp.code} variant="link" />
+          <span className="font-pixel text-[10px] text-retro-gold">{comp.name.toUpperCase()}</span>
+        </div>
         <ConnectionBadge connection={connection} />
       </div>
       <div className="flex items-center justify-between mb-4">

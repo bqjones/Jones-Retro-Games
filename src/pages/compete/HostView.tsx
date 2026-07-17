@@ -12,6 +12,7 @@ import {
 import type { Competition, Run } from '../../types/competition';
 import { Countdown } from '../../components/compete/Countdown';
 import { ConnectionBadge } from '../../components/compete/ConnectionBadge';
+import { ExitButton } from '../../components/compete/ExitButton';
 
 /** What the one big button does next, given the current phase. */
 function nextAction(comp: Competition): {
@@ -202,7 +203,10 @@ export function HostView() {
     <div className="min-h-screen bg-retro-black px-4 py-4 max-w-md mx-auto">
       {/* Status */}
       <div className="flex items-center justify-between mb-1">
-        <span className="font-pixel text-[10px] text-retro-gold">HOST REMOTE</span>
+        <div className="flex items-center gap-3">
+          <ExitButton code={comp.code} variant="link" />
+          <span className="font-pixel text-[10px] text-retro-gold">HOST REMOTE</span>
+        </div>
         <ConnectionBadge connection={api.connection} />
       </div>
       <p className="font-retro text-2xl text-retro-cyan mb-1">{PHASE_LABEL[comp.phase]}</p>

@@ -15,6 +15,7 @@ import { Countdown } from '../../components/compete/Countdown';
 import { ScorePad } from '../../components/compete/ScorePad';
 import { GameFrame } from '../../components/compete/GameFrame';
 import { ConnectionBadge } from '../../components/compete/ConnectionBadge';
+import { ExitButton } from '../../components/compete/ExitButton';
 
 type Mode = { kind: 'queue' } | { kind: 'playing'; playerId: string; round: number } | { kind: 'entering'; playerId: string; round: number };
 
@@ -103,6 +104,7 @@ export function StationView() {
         <div className="flex items-center gap-4">
           <ConnectionBadge connection={api.connection} />
           {inRotation && <Countdown comp={comp} className="text-2xl" />}
+          <ExitButton code={comp.code} variant="discreet" />
         </div>
       </div>
 
