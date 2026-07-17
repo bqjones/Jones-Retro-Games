@@ -431,8 +431,13 @@
             _masterGains.forEach(function(g) { g.gain.value = _currentVolume; });
         }
         window.addEventListener('message', function(e) {
-            if (e.data && e.data.type === 'jrg-volume' && typeof e.data.value === 'number') {
+            if (!e.data) return;
+            if (e.data.type === 'jrg-volume' && typeof e.data.value === 'number') {
                 setVolume(e.data.value);
+            } else if (e.data.type === 'jrg-focus') {
+                // Parent adjusted a control and wants keyboard back on the game.
+                var c = document.getElementById('jsdos');
+                if (c) c.focus();
             }
         });
 

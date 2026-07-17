@@ -18,10 +18,18 @@ export function Player() {
 
   const focusIframe = useCallback(() => {
     const iframe = iframeRef.current;
-    if (iframe) {
-      iframe.focus();
-      iframe.contentWindow?.focus();
+    if (!iframe) return;
+    iframe.focus();
+    iframe.contentWindow?.focus();
+    // Return keyboard focus to the emulator canvas itself, so game controls
+    // resume after touching the volume/mute controls. Same-origin direct focus,
+    // with a postMessage fallback the player page handles internally.
+    try {
+      iframe.contentDocument?.getElementById('jsdos')?.focus();
+    } catch {
+      /* ignore */
     }
+    iframe.contentWindow?.postMessage({ type: 'jrg-focus' }, '*');
   }, []);
 
   useEffect(() => {
@@ -128,6 +136,8 @@ export function Player() {
             max="100"
             value={muted ? 0 : volume}
             onChange={(e) => changeVolume(Number(e.target.value))}
+            onMouseUp={focusIframe}
+            onTouchEnd={focusIframe}
             aria-label="Volume"
             className="w-20 md:w-28 accent-retro-accent"
           />
