@@ -50,7 +50,7 @@ export function GameFrame({ gameId, barContent, label }: GameFrameProps) {
       </div>
       <iframe
         ref={iframeRef}
-        src={`/test-jsdos.html?v=${game.id}&vol=${volume}#${game.romPath}`}
+        src={`/test-jsdos.html?v=${game.id}#${game.romPath}`}
         onClick={() => iframeRef.current?.contentWindow?.focus()}
         className="flex-1 w-full border-0"
         title={`Playing ${game.title}`}

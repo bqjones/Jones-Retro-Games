@@ -80,7 +80,9 @@ export function Player() {
   }
 
   const isSilent = muted || volume === 0;
-  const playerUrl = `/test-jsdos.html?v=${game.id}&vol=${volume}#${game.romPath || '/roms/digger.jsdos'}`;
+  // Volume must NOT be in the URL — it's reactive state, and changing the src
+  // reloads the iframe (restarting the game). Volume is applied via postMessage.
+  const playerUrl = `/test-jsdos.html?v=${game.id}#${game.romPath || '/roms/digger.jsdos'}`;
 
   return (
     <div
