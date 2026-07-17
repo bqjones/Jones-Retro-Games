@@ -4,7 +4,7 @@
 // pages use network-first so deploys still land; everything else is
 // cache-first. Bump CACHE_VERSION when precached files change.
 
-const CACHE_VERSION = 'jrg-v1';
+const CACHE_VERSION = 'jrg-v2';
 
 const GAME_IDS = [
   'digger',
