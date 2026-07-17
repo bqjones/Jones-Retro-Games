@@ -1,5 +1,6 @@
-import { useEffect, useRef, type ReactNode } from 'react';
+import { useEffect, useRef, useState, type ReactNode } from 'react';
 import { getGameById } from '../../lib/games';
+import { getSettings } from '../../lib/storage';
 
 interface GameFrameProps {
   gameId: string;
@@ -14,17 +15,25 @@ const BAR_HEIGHT = 44;
 export function GameFrame({ gameId, barContent, label }: GameFrameProps) {
   const iframeRef = useRef<HTMLIFrameElement>(null);
   const game = getGameById(gameId);
+  const [volume, setVolume] = useState(80);
+
+  useEffect(() => {
+    getSettings().then((s) => setVolume(s.volume));
+  }, []);
 
   useEffect(() => {
     const iframe = iframeRef.current;
     if (!iframe) return;
-    const focus = () => {
+    const onLoad = () => {
       iframe.focus();
       iframe.contentWindow?.focus();
+      iframe.contentWindow?.postMessage({ type: 'jrg-volume', value: volume / 100 }, '*');
     };
-    iframe.addEventListener('load', focus);
-    return () => iframe.removeEventListener('load', focus);
-  }, [gameId]);
+    iframe.addEventListener('load', onLoad);
+    // Also apply immediately in case the iframe is already loaded.
+    iframe.contentWindow?.postMessage({ type: 'jrg-volume', value: volume / 100 }, '*');
+    return () => iframe.removeEventListener('load', onLoad);
+  }, [gameId, volume]);
 
   if (!game) return null;
 
@@ -41,7 +50,7 @@ export function GameFrame({ gameId, barContent, label }: GameFrameProps) {
       </div>
       <iframe
         ref={iframeRef}
-        src={`/test-jsdos.html?v=${game.id}#${game.romPath}`}
+        src={`/test-jsdos.html?v=${game.id}&vol=${volume}#${game.romPath}`}
         onClick={() => iframeRef.current?.contentWindow?.focus()}
         className="flex-1 w-full border-0"
         title={`Playing ${game.title}`}

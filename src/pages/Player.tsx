@@ -1,6 +1,8 @@
 import { useParams, useNavigate } from 'react-router-dom';
-import { useRef, useEffect, useCallback } from 'react';
+import { useRef, useEffect, useCallback, useState } from 'react';
 import { getGameById } from '../lib/games';
+import { getSettings, saveSettings } from '../lib/storage';
+import type { GameSettings } from '../types/game';
 
 const TOP_BAR_HEIGHT = 48;
 
@@ -9,6 +11,10 @@ export function Player() {
   const navigate = useNavigate();
   const iframeRef = useRef<HTMLIFrameElement>(null);
   const game = gameId ? getGameById(gameId) : undefined;
+
+  const [settings, setSettings] = useState<GameSettings | null>(null);
+  const [muted, setMuted] = useState(false);
+  const volume = settings?.volume ?? 80;
 
   const focusIframe = useCallback(() => {
     const iframe = iframeRef.current;
@@ -19,6 +25,10 @@ export function Player() {
   }, []);
 
   useEffect(() => {
+    getSettings().then(setSettings);
+  }, []);
+
+  useEffect(() => {
     // Focus iframe once it loads
     const iframe = iframeRef.current;
     if (iframe) {
@@ -26,6 +36,34 @@ export function Player() {
       return () => iframe.removeEventListener('load', focusIframe);
     }
   }, [focusIframe]);
+
+  // Push volume into the emulator iframe — now and on every (re)load.
+  useEffect(() => {
+    const iframe = iframeRef.current;
+    if (!iframe) return;
+    const send = () =>
+      iframe.contentWindow?.postMessage(
+        { type: 'jrg-volume', value: muted ? 0 : volume / 100 },
+        '*'
+      );
+    send();
+    iframe.addEventListener('load', send);
+    return () => iframe.removeEventListener('load', send);
+  }, [muted, volume]);
+
+  const changeVolume = (v: number) => {
+    setMuted(false);
+    setSettings((s) => {
+      const next: GameSettings = { ...(s ?? { volume: 80, scanlines: true, aspectRatio: '4:3' }), volume: v };
+      void saveSettings(next);
+      return next;
+    });
+  };
+
+  const toggleMute = () => {
+    setMuted((m) => !m);
+    focusIframe(); // keep playing without a second tap
+  };
 
   if (!game) {
     return (
@@ -41,7 +79,8 @@ export function Player() {
     );
   }
 
-  const playerUrl = `/test-jsdos.html?v=${game.id}#${game.romPath || '/roms/digger.jsdos'}`;
+  const isSilent = muted || volume === 0;
+  const playerUrl = `/test-jsdos.html?v=${game.id}&vol=${volume}#${game.romPath || '/roms/digger.jsdos'}`;
 
   return (
     <div
@@ -69,6 +108,27 @@ export function Player() {
           </button>
           <div className="h-4 w-px bg-retro-purple" />
           <h2 className="font-pixel text-xs text-white">{game.title}</h2>
+        </div>
+
+        {/* Volume / mute */}
+        <div className="flex items-center gap-2">
+          <button
+            onClick={toggleMute}
+            aria-label={isSilent ? 'Unmute' : 'Mute'}
+            title={isSilent ? 'Unmute' : 'Mute'}
+            className="text-lg leading-none hover:opacity-70 transition-opacity"
+          >
+            {isSilent ? '🔇' : '🔊'}
+          </button>
+          <input
+            type="range"
+            min="0"
+            max="100"
+            value={muted ? 0 : volume}
+            onChange={(e) => changeVolume(Number(e.target.value))}
+            aria-label="Volume"
+            className="w-20 md:w-28 accent-retro-accent"
+          />
         </div>
       </div>
 

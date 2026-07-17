@@ -398,6 +398,44 @@
         document.addEventListener('touchstart', resumeAudio);
         document.addEventListener('touchend', resumeAudio);
 
+        // ── Master volume control ──
+        // The emulator connects its audio straight to ctx.destination. We
+        // intercept those connections and reroute them through a per-context
+        // master GainNode, so the parent page can set volume / mute live via
+        // postMessage. Initial volume comes from the ?vol= query param (0-100).
+        var _volParam = parseFloat(new URLSearchParams(window.location.search).get('vol'));
+        var _currentVolume = isNaN(_volParam) ? 0.8 : Math.max(0, Math.min(1, _volParam / 100));
+        var _masterGains = [];
+        var _origConnect = AudioNode.prototype.connect;
+        function _getMasterGain(ctx) {
+            for (var i = 0; i < _masterGains.length; i++) {
+                if (_masterGains[i].context === ctx) return _masterGains[i];
+            }
+            var g = ctx.createGain();
+            g.gain.value = _currentVolume;
+            _origConnect.call(g, ctx.destination); // bypass override: gain -> real output
+            _masterGains.push(g);
+            return g;
+        }
+        if (typeof AudioDestinationNode !== 'undefined') {
+            AudioNode.prototype.connect = function(dest) {
+                if (dest instanceof AudioDestinationNode) {
+                    var mg = _getMasterGain(dest.context);
+                    if (this !== mg) return _origConnect.call(this, mg);
+                }
+                return _origConnect.apply(this, arguments);
+            };
+        }
+        function setVolume(v) {
+            _currentVolume = Math.max(0, Math.min(1, v));
+            _masterGains.forEach(function(g) { g.gain.value = _currentVolume; });
+        }
+        window.addEventListener('message', function(e) {
+            if (e.data && e.data.type === 'jrg-volume' && typeof e.data.value === 'number') {
+                setVolume(e.data.value);
+            }
+        });
+
         // ── Game config ──
         var params = new URLSearchParams(window.location.search);
         var hash = decodeURIComponent(window.location.hash.substring(1));
